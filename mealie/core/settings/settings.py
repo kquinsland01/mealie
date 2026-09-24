@@ -8,7 +8,7 @@ from typing import Annotated, Literal, NamedTuple
 from urllib.parse import urlparse
 
 from dateutil.tz import tzlocal
-from pydantic import PlainSerializer, field_validator
+from pydantic import Field, PlainSerializer, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from mealie.core.settings.themes import Theme
@@ -266,6 +266,11 @@ class AppSettings(AppLoggingSettings):
 
     DB_ENGINE: str = "sqlite"  # Options: 'sqlite', 'postgres'
     DB_PROVIDER: AbstractDBProvider | None = None
+
+    DB_STARTUP_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0, allow_inf_nan=False)
+    """Maximum wait for database connectivity before initialization, excluding migrations."""
+    DB_STARTUP_RETRY_INTERVAL_SECONDS: float = Field(default=1.0, gt=0, allow_inf_nan=False)
+    """Delay between failed database connectivity checks during startup."""
 
     SQLITE_MIGRATE_JOURNAL_WAL: bool = False
 

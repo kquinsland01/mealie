@@ -418,6 +418,30 @@ def test_sensitive_settings_mask(monkeypatch: pytest.MonkeyPatch):
 _SCRAPER_URL_FIELDS = ["SCRAPER_PROXY_URL", "SCRAPER_FLARESOLVERR_URL"]
 
 
+@pytest.mark.parametrize("field", ["DB_STARTUP_TIMEOUT_SECONDS", "DB_STARTUP_RETRY_INTERVAL_SECONDS"])
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "not-a-number"])
+def test_database_startup_settings_reject_invalid_values(field, value, monkeypatch):
+    monkeypatch.setenv(field, value)
+    get_app_settings.cache_clear()
+    try:
+        with pytest.raises(ValidationError):
+            get_app_settings()
+    finally:
+        get_app_settings.cache_clear()
+
+
+def test_database_startup_settings_read_environment(monkeypatch):
+    monkeypatch.setenv("DB_STARTUP_TIMEOUT_SECONDS", "60")
+    monkeypatch.setenv("DB_STARTUP_RETRY_INTERVAL_SECONDS", "0.5")
+    get_app_settings.cache_clear()
+    try:
+        settings = get_app_settings()
+        assert settings.DB_STARTUP_TIMEOUT_SECONDS == 60
+        assert settings.DB_STARTUP_RETRY_INTERVAL_SECONDS == 0.5
+    finally:
+        get_app_settings.cache_clear()
+
+
 @pytest.mark.parametrize("field", _SCRAPER_URL_FIELDS)
 @pytest.mark.parametrize(
     "value",

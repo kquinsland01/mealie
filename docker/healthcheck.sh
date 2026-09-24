@@ -9,4 +9,4 @@ else
 fi
 
 # -k: TLS certificate is likely not issued for 127.0.0.1, so don't verify
-curl -fsk "${PROTO}://127.0.0.1:${PORT}/api/app/about" > /dev/null
+curl -fsk --connect-timeout 2 --max-time 5 "${PROTO}://127.0.0.1:${PORT}/api/app/health/ready" > /dev/null

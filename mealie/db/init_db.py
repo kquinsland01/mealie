@@ -1,18 +1,22 @@
 import os
 from collections.abc import Callable
 from pathlib import Path
-from time import sleep
+from time import monotonic, sleep
 
 from alembic import command, config, script
 from alembic.config import Config
 from alembic.runtime import migration
 from sqlalchemy import engine, orm, text
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from mealie.core import root_logger
 from mealie.core.config import get_app_settings
+from mealie.db.db_setup import engine as db_engine
 from mealie.db.db_setup import session_context
 from mealie.db.fixes.fix_group_with_no_name import fix_group_with_no_name
 from mealie.db.fixes.fix_migration_data import fix_migration_data
+from mealie.db.health import DatabaseProbe
 from mealie.repos.all_repositories import get_repositories
 from mealie.repos.repository_factory import AllRepositories
 from mealie.repos.seed.init_users import default_user_init
@@ -77,34 +81,30 @@ def safe_try(func: Callable):
         logger.exception(f"Error calling '{func.__name__}'")
 
 
-def connect(session: orm.Session) -> bool:
-    try:
-        session.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        logger.exception("Error connecting to database")
-        return False
+def wait_for_database() -> None:
+    settings = get_app_settings()
+    deadline = monotonic() + settings.DB_STARTUP_TIMEOUT_SECONDS
+    probe = DatabaseProbe(db_engine)
+    while (remaining := deadline - monotonic()) > 0:
+        try:
+            probe.start().result(timeout=remaining)
+        except OperationalError, PoolTimeoutError, TimeoutError:
+            remaining = deadline - monotonic()
+            if remaining <= 0:
+                break
+            delay = min(settings.DB_STARTUP_RETRY_INTERVAL_SECONDS, remaining)
+            logger.warning("Database unavailable. Retrying in %.2f seconds...", delay)
+            sleep(delay)
+        else:
+            logger.info("Database connection established.")
+            return
+    raise ConnectionError("Database startup timeout exceeded - exiting application.")
 
 
 def main():
-    # Wait for database to connect
-    max_retry = 10
-    wait_seconds = 1
+    wait_for_database()
 
     with session_context() as session:
-        while True:
-            if connect(session):
-                logger.info("Database connection established.")
-                break
-
-            logger.error(f"Database connection failed. Retrying in {wait_seconds} seconds...")
-            max_retry -= 1
-
-            sleep(wait_seconds)
-
-            if max_retry == 0:
-                raise ConnectionError("Database connection failed - exiting application.")
-
         alembic_cfg_path = os.getenv("ALEMBIC_CONFIG_FILE", default=str(ALEMBIC_DIR / "alembic.ini"))
 
         if not os.path.isfile(alembic_cfg_path):
