@@ -35,6 +35,11 @@
 
 ### Database
 
+Database startup waiting is configurable with `DB_STARTUP_TIMEOUT_SECONDS`
+(default `10`) and `DB_STARTUP_RETRY_INTERVAL_SECONDS` (default `1`). Both are
+positive, finite values in seconds. The timeout covers connectivity waiting, not
+migrations. See [Health Checks](health-checks.md) for details and Kubernetes probes.
+
  | Variables                                               | Default  | Description                                                                                                                                                                                                                      |
  |---------------------------------------------------------|:--------:|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
  | DB_ENGINE                                               |  sqlite  | Optional: 'sqlite', 'postgres'                                                                                                                                                                                                   |
