@@ -35,7 +35,7 @@ dependencies = [
     "rapidfuzz==3.14.6",
     "authlib==1.8.0",
     "html2text==2025.4.15",
-    "paho-mqtt==1.6.1",
+    "paho-mqtt==2.1.0",
     "pydantic-settings==2.15.0",
     "pillow-heif==1.7.0",
     "pyjwt==2.14.0",
